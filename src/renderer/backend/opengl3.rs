@@ -10,7 +10,7 @@ use once_cell::sync::OnceCell;
 use tracing::error;
 use windows::core::{s, Error, Result, HRESULT, PCSTR};
 use windows::Win32::Foundation::{FARPROC, HMODULE};
-use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT, DXGI_FORMAT_R8G8B8A8_SNORM};
+use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT, DXGI_FORMAT_R8G8B8A8_UNORM};
 use windows::Win32::Graphics::OpenGL::*;
 use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryA};
 
@@ -135,7 +135,7 @@ impl RenderEngine for OpenGl3RenderEngine {
         let fonts = ctx.fonts();
         let fonts_texture = fonts.build_rgba32_texture();
         fonts.tex_id = self.load_texture(
-            DXGI_FORMAT_R8G8B8A8_SNORM, fonts_texture.data, fonts_texture.width, fonts_texture.height
+            DXGI_FORMAT_R8G8B8A8_UNORM, fonts_texture.data, fonts_texture.width, fonts_texture.height
         )?;
         Ok(())
     }

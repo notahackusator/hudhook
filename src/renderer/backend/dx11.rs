@@ -666,7 +666,7 @@ impl TextureHeap {
             self.device.CreateShaderResourceView(
                 &resource,
                 Some(&D3D11_SHADER_RESOURCE_VIEW_DESC {
-                    Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+                    Format: format,
                     ViewDimension: D3D11_SRV_DIMENSION_TEXTURE2D,
                     Anonymous: D3D11_SHADER_RESOURCE_VIEW_DESC_0 {
                         Texture2D: D3D11_TEX2D_SRV { MostDetailedMip: 0, MipLevels: 1 },
