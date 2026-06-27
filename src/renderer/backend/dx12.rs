@@ -899,10 +899,25 @@ impl TextureHeap {
             return Err(Error::from_hresult(HRESULT(-1)));
         }
 
-        let upload_row_size = width * 4;
+        let upload_row_size = match format {
+            DXGI_FORMAT_BC1_UNORM | DXGI_FORMAT_BC1_UNORM_SRGB => ((width + 3) / 4) * 8,
+            DXGI_FORMAT_BC2_UNORM | DXGI_FORMAT_BC3_UNORM |
+            DXGI_FORMAT_BC4_UNORM | DXGI_FORMAT_BC5_UNORM |
+            DXGI_FORMAT_BC7_UNORM | DXGI_FORMAT_BC7_UNORM_SRGB => ((width + 3) / 4) * 16,
+            _ => width * 4,
+        };
+
+        let num_rows = match format {
+            DXGI_FORMAT_BC1_UNORM | DXGI_FORMAT_BC1_UNORM_SRGB |
+            DXGI_FORMAT_BC2_UNORM | DXGI_FORMAT_BC3_UNORM |
+            DXGI_FORMAT_BC4_UNORM | DXGI_FORMAT_BC5_UNORM |
+            DXGI_FORMAT_BC7_UNORM | DXGI_FORMAT_BC7_UNORM_SRGB => (height + 3) / 4,
+            _ => height,
+        };
+
         let align = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
-        let upload_pitch = upload_row_size.div_ceil(align) * align; // 256 bytes aligned
-        let upload_size = height * upload_pitch;
+        let upload_pitch = upload_row_size.div_ceil(align) * align;
+        let upload_size = num_rows * upload_pitch;
 
         let upload_buffer: ID3D12Resource = util::try_out_ptr(|v| unsafe {
             self.device.CreateCommittedResource(
@@ -937,7 +952,7 @@ impl TextureHeap {
         if upload_row_size == upload_pitch {
             ptr::copy_nonoverlapping(data.as_ptr(), upload_buffer_ptr as *mut u8, data.len());
         } else {
-            for y in 0..height {
+            for y in 0..num_rows {
                 let src = data.as_ptr().add((y * upload_row_size) as usize);
                 let dst = (upload_buffer_ptr as *mut u8).add((y * upload_pitch) as usize);
                 ptr::copy_nonoverlapping(src, dst, upload_row_size as usize);
