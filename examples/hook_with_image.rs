@@ -6,6 +6,7 @@ use image::{EncodableLayout, RgbaImage};
 use imgui::{Condition, Context, Image, TextureId};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
+use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM;
 
 pub fn setup_tracing() {
     tracing_subscriber::registry()
@@ -50,7 +51,7 @@ impl Default for HookExample {
 impl ImguiRenderLoop for HookExample {
     fn initialize<'a>(&'a mut self, _ctx: &mut Context, render_context: &'a mut dyn RenderContext) {
         self.image_id = render_context
-            .load_texture(self.image.as_bytes(), self.image.width() as _, self.image.height() as _)
+            .load_texture(DXGI_FORMAT_R8G8B8A8_UNORM, self.image.as_bytes(), self.image.width() as _, self.image.height() as _)
             .ok();
 
         println!("{:?}", self.image_id);

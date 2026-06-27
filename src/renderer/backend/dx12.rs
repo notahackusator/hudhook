@@ -118,10 +118,10 @@ impl D3D12RenderEngine {
 }
 
 impl RenderContext for D3D12RenderEngine {
-    fn load_texture(&mut self, data: &[u8], width: u32, height: u32) -> Result<TextureId> {
+    fn load_texture(&mut self, format: DXGI_FORMAT, data: &[u8], width: u32, height: u32) -> Result<TextureId> {
         unsafe {
-            let texture_id = self.texture_heap.create_texture(width, height)?;
-            self.texture_heap.upload_texture(texture_id, data, width, height)?;
+            let texture_id = self.texture_heap.create_texture(format, width, height)?;
+            self.texture_heap.upload_texture(texture_id, format, data, width, height)?;
             Ok(texture_id)
         }
     }
@@ -129,11 +129,12 @@ impl RenderContext for D3D12RenderEngine {
     fn replace_texture(
         &mut self,
         texture_id: TextureId,
+        format: DXGI_FORMAT,
         data: &[u8],
         width: u32,
         height: u32,
     ) -> Result<()> {
-        unsafe { self.texture_heap.upload_texture(texture_id, data, width, height) }
+        unsafe { self.texture_heap.upload_texture(texture_id, format, data, width, height) }
     }
 }
 
@@ -191,8 +192,9 @@ impl RenderEngine for D3D12RenderEngine {
     fn setup_fonts(&mut self, ctx: &mut Context) -> Result<()> {
         let fonts = ctx.fonts();
         let fonts_texture = fonts.build_rgba32_texture();
-        fonts.tex_id =
-            self.load_texture(fonts_texture.data, fonts_texture.width, fonts_texture.height)?;
+        fonts.tex_id = self.load_texture(
+            DXGI_FORMAT_R8G8B8A8_UNORM, fonts_texture.data, fonts_texture.width, fonts_texture.height
+        )?;
         Ok(())
     }
 }
@@ -798,7 +800,7 @@ impl TextureHeap {
         Ok(())
     }
 
-    unsafe fn create_texture(&mut self, width: u32, height: u32) -> Result<TextureId> {
+    unsafe fn create_texture(&mut self, format: DXGI_FORMAT, width: u32, height: u32) -> Result<TextureId> {
         self.resize_heap()?;
 
         let cpu_heap_stg_start = self.srv_staging_heap.GetCPUDescriptorHandleForHeapStart();
@@ -838,7 +840,7 @@ impl TextureHeap {
                     Height: height as _,
                     DepthOrArraySize: 1,
                     MipLevels: 1,
-                    Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+                    Format: format,
                     SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
                     Layout: D3D12_TEXTURE_LAYOUT_UNKNOWN,
                     Flags: D3D12_RESOURCE_FLAG_NONE,
@@ -883,6 +885,7 @@ impl TextureHeap {
     unsafe fn upload_texture(
         &mut self,
         texture_id: TextureId,
+        format: DXGI_FORMAT,
         data: &[u8],
         width: u32,
         height: u32,
@@ -958,7 +961,7 @@ impl TextureHeap {
                 PlacedFootprint: D3D12_PLACED_SUBRESOURCE_FOOTPRINT {
                     Offset: 0,
                     Footprint: D3D12_SUBRESOURCE_FOOTPRINT {
-                        Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+                        Format: format,
                         Width: width,
                         Height: height,
                         Depth: 1,

@@ -10,6 +10,7 @@ use image::{DynamicImage, EncodableLayout, RgbaImage};
 use imgui::{Condition, Context, Image, StyleColor, TextureId};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
+use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM;
 
 pub fn setup_tracing() {
     dotenv::dotenv().ok();
@@ -131,7 +132,7 @@ impl ImguiRenderLoop for HookExample {
         for i in 0..IMAGE_COUNT {
             let image = &self.image[i];
             self.image_id[i] = render_context
-                .load_texture(image.as_bytes(), image.width() as _, image.height() as _)
+                .load_texture(DXGI_FORMAT_R8G8B8A8_UNORM, image.as_bytes(), image.width() as _, image.height() as _)
                 .ok();
         }
 
@@ -152,6 +153,7 @@ impl ImguiRenderLoop for HookExample {
                 render_context
                     .replace_texture(
                         texture,
+                        DXGI_FORMAT_R8G8B8A8_UNORM,
                         self.dynamic_image.as_bytes(),
                         self.dynamic_image.width(),
                         self.dynamic_image.height(),

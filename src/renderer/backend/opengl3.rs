@@ -10,6 +10,7 @@ use once_cell::sync::OnceCell;
 use tracing::error;
 use windows::core::{s, Error, Result, HRESULT, PCSTR};
 use windows::Win32::Foundation::{FARPROC, HMODULE};
+use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT, DXGI_FORMAT_R8G8B8A8_SNORM};
 use windows::Win32::Graphics::OpenGL::*;
 use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryA};
 
@@ -102,13 +103,14 @@ impl OpenGl3RenderEngine {
 }
 
 impl RenderContext for OpenGl3RenderEngine {
-    fn load_texture(&mut self, data: &[u8], width: u32, height: u32) -> Result<TextureId> {
-        unsafe { self.texture_heap.create_texture(&self.gl, data, width, height) }
+    fn load_texture(&mut self, format: DXGI_FORMAT, data: &[u8], width: u32, height: u32) -> Result<TextureId> {
+        unsafe { self.texture_heap.create_texture(&self.gl, format, data, width, height) }
     }
 
     fn replace_texture(
         &mut self,
         texture_id: TextureId,
+        _format: DXGI_FORMAT,
         data: &[u8],
         width: u32,
         height: u32,
@@ -132,8 +134,9 @@ impl RenderEngine for OpenGl3RenderEngine {
     fn setup_fonts(&mut self, ctx: &mut Context) -> Result<()> {
         let fonts = ctx.fonts();
         let fonts_texture = fonts.build_rgba32_texture();
-        fonts.tex_id =
-            self.load_texture(fonts_texture.data, fonts_texture.width, fonts_texture.height)?;
+        fonts.tex_id = self.load_texture(
+            DXGI_FORMAT_R8G8B8A8_SNORM, fonts_texture.data, fonts_texture.width, fonts_texture.height
+        )?;
         Ok(())
     }
 }
@@ -349,6 +352,74 @@ unsafe fn create_shader_program(gl: &gl::Gl) -> (GLuint, GLuint, GLuint, GLuint,
 
     (program, projection_loc, position_loc, color_loc, uv_loc, texture_loc)
 }
+use std::ffi::c_uint;
+
+fn dxgi_to_gl_format(fmt: DXGI_FORMAT) -> GLenum {
+    match fmt {
+        DXGI_FORMAT(0) => gl::NONE, // UNKNOWN
+
+        // 32-bit RGBA
+        DXGI_FORMAT(28) => gl::RGBA8,          // R8G8B8A8_UNORM
+        DXGI_FORMAT(29) => gl::SRGB8_ALPHA8,   // R8G8B8A8_UNORM_SRGB
+        DXGI_FORMAT(87) => gl::RGBA8,          // B8G8R8A8_UNORM (swizzle needed)
+        DXGI_FORMAT(91) => gl::SRGB8_ALPHA8,   // B8G8R8A8_UNORM_SRGB
+        DXGI_FORMAT(88) => gl::RGB8,           // B8G8R8X8_UNORM
+        DXGI_FORMAT(93) => gl::SRGB8,          // B8G8R8X8_UNORM_SRGB
+
+        // 16-bit color
+        DXGI_FORMAT(86) => gl::RGB5_A1,        // B5G5R5A1_UNORM
+        DXGI_FORMAT(115) => gl::RGBA4,         // B4G4R4A4_UNORM
+
+        // Single channel
+        DXGI_FORMAT(61) => gl::R8,             // R8_UNORM
+        DXGI_FORMAT(62) => gl::R8UI,           // R8_UINT
+        DXGI_FORMAT(63) => gl::R8_SNORM,       // R8_SNORM
+        DXGI_FORMAT(64) => gl::R8I,            // R8_SINT
+
+        DXGI_FORMAT(56) => gl::R16,            // R16_UNORM
+        DXGI_FORMAT(57) => gl::R16UI,          // R16_UINT
+        DXGI_FORMAT(58) => gl::R16_SNORM,
+        DXGI_FORMAT(59) => gl::R16I,
+
+        DXGI_FORMAT(41) => gl::R32F,           // R32_FLOAT
+        DXGI_FORMAT(42) => gl::R32UI,          // R32_UINT
+        DXGI_FORMAT(43) => gl::R32I,           // R32_SINT
+
+        // RG formats
+        DXGI_FORMAT(49) => gl::RG8,            // R8G8_UNORM
+        DXGI_FORMAT(50) => gl::RG8UI,
+        DXGI_FORMAT(51) => gl::RG8_SNORM,
+        DXGI_FORMAT(52) => gl::RG8I,
+
+        DXGI_FORMAT(35) => gl::RG16,           // R16G16_UNORM
+        DXGI_FORMAT(36) => gl::RG16UI,
+        DXGI_FORMAT(37) => gl::RG16_SNORM,
+        DXGI_FORMAT(38) => gl::RG16I,
+
+        DXGI_FORMAT(35) => gl::RG16,           // R16G16_UNORM
+        DXGI_FORMAT(16) => gl::RG32F,           // R32G32_FLOAT
+        DXGI_FORMAT(17) => gl::RG32UI,
+        DXGI_FORMAT(18) => gl::RG32I,
+
+        // RGB/RGBA float
+        DXGI_FORMAT(2) => gl::RGBA32F,         // R32G32B32A32_FLOAT
+        DXGI_FORMAT(3) => gl::RGBA32UI,
+        DXGI_FORMAT(4) => gl::RGBA32I,
+
+        DXGI_FORMAT(10) => gl::RGBA16F,        // R16G16B16A16_FLOAT
+        DXGI_FORMAT(11) => gl::RGBA16,
+        DXGI_FORMAT(12) => gl::RGBA16UI,
+        DXGI_FORMAT(13) => gl::RGBA16_SNORM,
+        DXGI_FORMAT(14) => gl::RGBA16I,
+
+        // Depth/stencil
+        DXGI_FORMAT(40) => gl::DEPTH_COMPONENT32F, // D32_FLOAT
+        DXGI_FORMAT(55) => gl::DEPTH_COMPONENT16, // D16_UNORM
+        DXGI_FORMAT(45) => gl::DEPTH24_STENCIL8,   // D24_UNORM_S8_UINT
+
+        _ => gl::NONE,
+    }
+}
 
 struct TextureHeap {
     textures: Vec<Texture>,
@@ -371,6 +442,7 @@ impl TextureHeap {
     unsafe fn create_texture(
         &mut self,
         gl: &gl::Gl,
+        format: DXGI_FORMAT,
         data: &[u8],
         width: u32,
         height: u32,
@@ -388,7 +460,7 @@ impl TextureHeap {
         gl.TexImage2D(
             gl::TEXTURE_2D,
             0,
-            gl::RGBA as GLint,
+            dxgi_to_gl_format(format) as _,
             width as GLint,
             height as GLint,
             0,

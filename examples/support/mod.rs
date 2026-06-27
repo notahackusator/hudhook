@@ -8,6 +8,7 @@ use image::{EncodableLayout, RgbaImage};
 use imgui::{Condition, Image, TextureId};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
+use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM;
 
 pub fn setup_tracing() {
     hudhook::alloc_console().unwrap();
@@ -74,7 +75,7 @@ impl ImguiRenderLoop for HookExample {
         render_context: &'a mut dyn RenderContext,
     ) {
         let tex_id = render_context
-            .load_texture(self.image.as_bytes(), self.image.width(), self.image.height())
+            .load_texture(DXGI_FORMAT_R8G8B8A8_UNORM, self.image.as_bytes(), self.image.width(), self.image.height())
             .unwrap();
 
         self.image_id = Some(tex_id);

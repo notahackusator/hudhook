@@ -56,13 +56,14 @@ impl D3D11RenderEngine {
 }
 
 impl RenderContext for D3D11RenderEngine {
-    fn load_texture(&mut self, data: &[u8], width: u32, height: u32) -> Result<TextureId> {
-        unsafe { self.texture_heap.create_texture(data, width, height) }
+    fn load_texture(&mut self, format: DXGI_FORMAT, data: &[u8], width: u32, height: u32) -> Result<TextureId> {
+        unsafe { self.texture_heap.create_texture(format, data, width, height) }
     }
 
     fn replace_texture(
         &mut self,
         texture_id: TextureId,
+        _format: DXGI_FORMAT,
         data: &[u8],
         width: u32,
         height: u32,
@@ -142,8 +143,9 @@ impl RenderEngine for D3D11RenderEngine {
     fn setup_fonts(&mut self, ctx: &mut Context) -> Result<()> {
         let fonts = ctx.fonts();
         let fonts_texture = fonts.build_rgba32_texture();
-        fonts.tex_id =
-            self.load_texture(fonts_texture.data, fonts_texture.width, fonts_texture.height)?;
+        fonts.tex_id = self.load_texture(
+            DXGI_FORMAT_R8G8B8A8_UNORM, fonts_texture.data, fonts_texture.width, fonts_texture.height
+        )?;
         Ok(())
     }
 }
@@ -636,7 +638,7 @@ impl TextureHeap {
         })
     }
 
-    unsafe fn create_texture(&mut self, data: &[u8], width: u32, height: u32) -> Result<TextureId> {
+    unsafe fn create_texture(&mut self, format: DXGI_FORMAT, data: &[u8], width: u32, height: u32) -> Result<TextureId> {
         let resource: ID3D11Texture2D = util::try_out_ptr(|v| {
             self.device.CreateTexture2D(
                 &D3D11_TEXTURE2D_DESC {
@@ -644,7 +646,7 @@ impl TextureHeap {
                     Height: height,
                     MipLevels: 1,
                     ArraySize: 1,
-                    Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+                    Format: format,
                     SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
                     Usage: D3D11_USAGE_DEFAULT,
                     BindFlags: D3D11_BIND_SHADER_RESOURCE.0 as u32,

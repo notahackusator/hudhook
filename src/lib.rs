@@ -125,6 +125,7 @@ use tracing::{error, trace, warn};
 pub use windows;
 use windows::core::Error;
 use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, WPARAM};
+use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT;
 use windows::Win32::System::Console::{
     AllocConsole, FreeConsole, GetConsoleMode, GetStdHandle, SetConsoleMode, CONSOLE_MODE,
     ENABLE_VIRTUAL_TERMINAL_PROCESSING, STD_OUTPUT_HANDLE,
@@ -155,7 +156,7 @@ static HOOK_EJECTION_BARRIER: HookEjectionBarrier = HookEjectionBarrier::new();
 pub trait RenderContext {
     /// Load texture and return TextureId to use. Invoke it in your
     /// [`crate::ImguiRenderLoop::initialize`] method for setting up textures.
-    fn load_texture(&mut self, data: &[u8], width: u32, height: u32) -> Result<TextureId, Error>;
+    fn load_texture(&mut self, format: DXGI_FORMAT, data: &[u8], width: u32, height: u32) -> Result<TextureId, Error>;
 
     /// Upload an image to an existing texture, replacing its content. Invoke it
     /// in your [`crate::ImguiRenderLoop::before_render`] method for
@@ -163,6 +164,7 @@ pub trait RenderContext {
     fn replace_texture(
         &mut self,
         texture_id: TextureId,
+        format: DXGI_FORMAT,
         data: &[u8],
         width: u32,
         height: u32,
