@@ -352,7 +352,6 @@ unsafe fn create_shader_program(gl: &gl::Gl) -> (GLuint, GLuint, GLuint, GLuint,
 
     (program, projection_loc, position_loc, color_loc, uv_loc, texture_loc)
 }
-use std::ffi::c_uint;
 
 fn dxgi_to_gl_format(fmt: DXGI_FORMAT) -> GLenum {
     match fmt {
@@ -396,7 +395,6 @@ fn dxgi_to_gl_format(fmt: DXGI_FORMAT) -> GLenum {
         DXGI_FORMAT(37) => gl::RG16_SNORM,
         DXGI_FORMAT(38) => gl::RG16I,
 
-        DXGI_FORMAT(35) => gl::RG16,           // R16G16_UNORM
         DXGI_FORMAT(16) => gl::RG32F,           // R32G32_FLOAT
         DXGI_FORMAT(17) => gl::RG32UI,
         DXGI_FORMAT(18) => gl::RG32I,
